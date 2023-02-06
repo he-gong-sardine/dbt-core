@@ -11,6 +11,9 @@
     {%- set merge_exclude_columns = config.get('merge_exclude_columns') -%}
     {%- set update_columns = get_merge_update_columns(merge_update_columns, merge_exclude_columns, dest_columns) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
+    {%- set sql_merge = config.get('sql_merge', none) -%}
+    {%- set merge_disable_update = config.get('merge_disable_update', none) -%}
+    {%- set merge_disable_insert = config.get('merge_disable_insert', none) -%}
 
     {% if unique_key %}
         {% if unique_key is sequence and unique_key is not mapping and unique_key is not string %}
@@ -36,7 +39,9 @@
         using {{ source }} as DBT_INTERNAL_SOURCE
         on {{"(" ~ predicates | join(") and (") ~ ")"}}
 
-    {% if unique_key %}
+    {{ sql_merge if sql_merge is not none }}
+
+    {% if unique_key and merge_disable_update is none %}
     when matched then update set
         {% for column_name in update_columns -%}
             {{ column_name }} = DBT_INTERNAL_SOURCE.{{ column_name }}
@@ -44,10 +49,12 @@
         {%- endfor %}
     {% endif %}
 
+    {%- if merge_disable_insert is none -%}
     when not matched then insert
         ({{ dest_cols_csv }})
     values
         ({{ dest_cols_csv }})
+    {% endif %}
 
 {% endmacro %}
 
